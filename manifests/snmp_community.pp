@@ -6,7 +6,7 @@ define ipmi::snmp_community (
   Optional[String]  $community   = undef,
 )
 {
-  require ::ipmi
+  include ipmi
   $_community = $community ? {
     undef   => $name,
     default => $community,
@@ -15,5 +15,6 @@ define ipmi::snmp_community (
     command => "/usr/bin/ipmitool lan set ${lan_channel} snmp ${_community}",
     onlyif  => "/usr/bin/test \"$(ipmitool lan print ${lan_channel} |\
     grep 'SNMP Community String' | sed -e 's/.* : //g')\" != \"${_community}\"",
+    require => Package[$ipmi::packages],
   }
 }
