@@ -1,0 +1,4 @@
+ipmi::packages:
+  - OpenIPMI
+  - ipmitool
+ipmi::conf_file: /etc/sysconfig/ipmi

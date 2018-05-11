@@ -1,491 +1,166 @@
 require 'spec_helper'
 
-describe 'ipmi', :type => :class do
+describe 'ipmi' do
+  let(:node) { 'ipmi.example.com' }
+  let(:params) { {} }
 
-  describe 'for osfamily RedHat' do
-    let :facts do
-      {
-        :osfamily                  => 'RedHat',
-        :operatingsystemmajrelease => '6',
-      }
-    end
-
-    describe 'no params' do
-      it { should create_class('ipmi') }
-      it { should contain_class('ipmi::params') }
-      it { should contain_class('ipmi::install') }
-      it { should contain_class('ipmi::config') }
-      it do
-        should contain_augeas('/etc/sysconfig/ipmi').with({
-          'context' => '/files/etc/sysconfig/ipmi',
-          'changes' => [
-            'set IPMI_WATCHDOG no',
-          ],
-        })
+  # Puppet::Util::Log.level = :debug
+  # Puppet::Util::Log.newdestination(:console)
+  # This will need to get moved
+  # it { pp catalogue.resources }
+  on_supported_os.each do |os, facts|
+    context "on #{os}" do
+      let(:facts) do
+        facts
       end
-      it do
-        should contain_class('ipmi::service::ipmi').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-        should contain_service('ipmi').with({
-          :ensure => 'running',
-          :enable => true,
-        })
+      case facts['os']['family']
+      when 'Redhat'
+        let(:conf_file) { '/etc/sysconfig/ipmi' }
+        let(:packages) { ['OpenIPMI', 'ipmitool'] }
+        let(:ipmi_service_name) { 'ipmi' }
+      else
+        let(:conf_file) { '/etc/default/openipmi' }
+        let(:packages) { ['openipmi', 'ipmitool'] }
+        let(:ipmi_service_name) { 'openipmi' }
       end
-      it do
-        should contain_class('ipmi::service::ipmievd').with({
-          :ensure => 'stopped',
-          :enable => false,
-        })
+      describe 'check default config' do
+        it { is_expected.to compile.with_all_deps }
+        it do
+          packages.each do |package|
+            is_expected.to contain_package(package)
+          end
+        end
+        it do
+          is_expected.to contain_augeas(conf_file).with(
+            context: "/files#{conf_file}",
+            changes: ['set IPMI_WATCHDOG no'],
+            notify: "Service['#{ipmi_service_name}', 'ipmievd']",
+          )
+        end
+        it do
+          is_expected.to contain_service(ipmi_service_name).with(
+            ensure: 'running',
+            enable: 'true',
+          )
+        end
+        it do
+          is_expected.to contain_service('ipmievd').with(
+            ensure: 'stopped'
+            enable: 'false',
+          )
+        end
       end
-    end
-
-    describe 'service_ensure => running' do
-      let(:params) {{ :service_ensure => 'running' }}
-
-      it { should create_class('ipmi') }
-      it { should contain_class('ipmi::params') }
-      it { should contain_class('ipmi::install') }
-      it { should contain_class('ipmi::config') }
-      it do
-        should contain_augeas('/etc/sysconfig/ipmi').with({
-          'context' => '/files/etc/sysconfig/ipmi',
-          'changes' => [
-            'set IPMI_WATCHDOG no',
-          ],
-        })
+      describe 'Change Defaults' do
+        context 'packages' do
+          before { params.merge!(packages: ['foobar']) }
+          it { is_expected.to compile }
+          it { is_expected.to contain_package('foobar') }
+        end
+        context 'conf_file' do
+          before { params.merge!(conf_file: '/foo/bar') }
+          it { is_expected.to compile }
+          it do
+            is_expected.to contain_augeas('/foo/bar').with(
+              context: "/files/foo/bar",
+              changes: ['set IPMI_WATCHDOG no'],
+              notify: "Service['#{ipmi_service_name}', 'ipmievd']",
+            )
+          end
+        end
+        context 'ipmi_service_name' do
+          before { params.merge!(ipmi_service_name: 'foobar') }
+          it { is_expected.to compile }
+          it do
+            is_expected.to contain_service('foobar').with(
+              ensure: 'running'
+              enable: 'true',
+            )
+          end
+        end
+        context 'ipmi_service_ensure' do
+          before { params.merge!(ipmi_service_ensure: 'stopped') }
+          it { is_expected.to compile }
+          it do
+            is_expected.to contain_service(ipmievd_service_name).with(
+              ensure: 'stopped'
+              enable: 'false',
+            )
+          end
+        end
+        context 'ipmievd_service_name' do
+          before { params.merge!(ipmievd_service_name: 'foobar') }
+          it { is_expected.to compile }
+          it do
+            is_expected.to contain_service('foobar').with(
+              ensure: 'stopped'
+              enable: 'false',
+            )
+          end
+        end
+        context 'ipmievd_service_ensure' do
+          before { params.merge!(ipmievd_service_ensure: 'running') }
+          it { is_expected.to compile }
+          it do
+            is_expected.to contain_service('foobar').with(
+              ensure: 'running'
+              enable: 'true',
+            )
+          end
+        end
+        context 'watchdog' do
+          before { params.merge!(watchdog: true) }
+          it { is_expected.to compile }
+          it do
+            is_expected.to contain_augeas(conf_file).with(
+              context: "/files#{conf_file}",
+              changes: ['set IPMI_WATCHDOG yes'],
+              notify: "Service['#{ipmi_service_name}', 'ipmievd']",
+            )
+          end
+        end
       end
-      it do
-        should contain_class('ipmi::service::ipmi').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmievd').with({
-          :ensure => 'stopped',
-          :enable => false,
-        })
-      end
-    end
-
-    describe 'service_ensure => stopped' do
-      let(:params) {{ :service_ensure => 'stopped' }}
-
-      it { should create_class('ipmi') }
-      it { should contain_class('ipmi::params') }
-      it { should contain_class('ipmi::install') }
-      it { should contain_class('ipmi::config') }
-      it do
-        should contain_augeas('/etc/sysconfig/ipmi').with({
-          'context' => '/files/etc/sysconfig/ipmi',
-          'changes' => [
-            'set IPMI_WATCHDOG no',
-          ],
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmi').with({
-          :ensure => 'stopped',
-          :enable => false,
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmievd').with({
-          :ensure => 'stopped',
-          :enable => false,
-        })
-      end
-    end
-
-    describe 'service_ensure => invalid-string' do
-      let(:params) {{ :service_ensure => 'invalid-string' }}
-
-      it 'should fail' do
-        expect {
-          should contain_class('ipmi')
-        }.to raise_error(Puppet::Error, /does not match/)
-      end
-    end
-
-    describe 'ipmievd_service_ensure => running' do
-      let(:params) {{ :ipmievd_service_ensure => 'running' }}
-
-      it { should create_class('ipmi') }
-      it { should contain_class('ipmi::params') }
-      it { should contain_class('ipmi::install') }
-      it { should contain_class('ipmi::config') }
-      it do
-        should contain_augeas('/etc/sysconfig/ipmi').with({
-          'context' => '/files/etc/sysconfig/ipmi',
-          'changes' => [
-            'set IPMI_WATCHDOG no',
-          ],
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmi').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmievd').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-      end
-    end
-
-    describe 'ipmievd_service_ensure => stopped' do
-      let(:params) {{ :ipmievd_service_ensure => 'stopped' }}
-
-      it { should create_class('ipmi') }
-      it { should contain_class('ipmi::params') }
-      it { should contain_class('ipmi::install') }
-      it { should contain_class('ipmi::config') }
-      it do
-        should contain_augeas('/etc/sysconfig/ipmi').with({
-          'context' => '/files/etc/sysconfig/ipmi',
-          'changes' => [
-            'set IPMI_WATCHDOG no',
-          ],
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmi').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmievd').with({
-          :ensure => 'stopped',
-          :enable => false,
-        })
+      describe 'check bad type' do
+        context 'packages' do
+          before { params.merge!(packages: true) }
+          it { expect { subject.call }.to raise_error(Puppet::Error) }
+        end
+        context 'conf_file' do
+          before { params.merge!(conf_file: true) }
+          it { expect { subject.call }.to raise_error(Puppet::Error) }
+        end
+        context 'ipmi_service_name' do
+          before { params.merge!(ipmi_service_name: true) }
+          it { expect { subject.call }.to raise_error(Puppet::Error) }
+        end
+        context 'ipmi_service_ensure' do
+          before { params.merge!(ipmi_service_ensure: true) }
+          it { expect { subject.call }.to raise_error(Puppet::Error) }
+        end
+        context 'ipmievd_service_name' do
+          before { params.merge!(ipmievd_service_name: true) }
+          it { expect { subject.call }.to raise_error(Puppet::Error) }
+        end
+        context 'ipmievd_service_ensure' do
+          before { params.merge!(ipmievd_service_ensure: true) }
+          it { expect { subject.call }.to raise_error(Puppet::Error) }
+        end
+        context 'watchdog' do
+          before { params.merge!(watchdog: 'foobar') }
+          it { expect { subject.call }.to raise_error(Puppet::Error) }
+        end
+        context 'snmps' do
+          before { params.merge!(snmps: true) }
+          it { expect { subject.call }.to raise_error(Puppet::Error) }
+        end
+        context 'users' do
+          before { params.merge!(users: true) }
+          it { expect { subject.call }.to raise_error(Puppet::Error) }
+        end
+        context 'networks' do
+          before { params.merge!(networks: true) }
+          it { expect { subject.call }.to raise_error(Puppet::Error) }
+        end
       end
     end
-
-    describe 'ipmievd_service_ensure => invalid-string' do
-      let(:params) {{ :ipmievd_service_ensure => 'invalid-string' }}
-
-      it 'should fail' do
-        expect {
-          should contain_class('ipmi')
-        }.to raise_error(Puppet::Error, /does not match/)
-      end
-    end
-
-    describe 'watchdog => true' do
-      let(:params) {{ :watchdog => true }}
-
-      it { should contain_class('ipmi::params') }
-      it { should contain_class('ipmi::install') }
-      it { should contain_class('ipmi::config') }
-      it do
-        should contain_augeas('/etc/sysconfig/ipmi').with({
-          'context' => '/files/etc/sysconfig/ipmi',
-          'changes' => [
-            'set IPMI_WATCHDOG yes',
-          ],
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmi').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmievd').with({
-          :ensure => 'stopped',
-          :enable => false,
-        })
-      end
-    end
-
-    describe 'watchdog => false' do
-      let(:params) {{ :watchdog => false }}
-
-      it { should contain_class('ipmi::params') }
-      it { should contain_class('ipmi::install') }
-      it { should contain_class('ipmi::config') }
-      it do
-        should contain_augeas('/etc/sysconfig/ipmi').with({
-          'context' => '/files/etc/sysconfig/ipmi',
-          'changes' => [
-            'set IPMI_WATCHDOG no',
-          ],
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmi').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmievd').with({
-          :ensure => 'stopped',
-          :enable => false,
-        })
-      end
-    end
-
-    describe 'watchdog => invalid-string' do
-      let(:params) {{ :watchdog => 'invalid-string' }}
-
-      it 'should fail' do
-        expect {
-          should contain_class('ipmi')
-        }.to raise_error(Puppet::Error, /is not a boolean/)
-      end
-    end
-
   end
-
-  describe 'for osfamily Debian' do
-    let :facts do
-      {
-        :osfamily                  => 'Debian',
-        :operatingsystem           => 'Ubuntu',
-      }
-    end
-
-    describe 'no params' do
-      it { should create_class('ipmi') }
-      it { should contain_class('ipmi::params') }
-      it { should contain_class('ipmi::install') }
-      it { should contain_class('ipmi::config') }
-      it do
-        should contain_augeas('/etc/default/openipmi').with({
-          'context' => '/files/etc/default/openipmi',
-          'changes' => [
-            'set IPMI_WATCHDOG no',
-          ],
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmi').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-        should contain_service('openipmi').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmievd').with({
-          :ensure => 'stopped',
-          :enable => false,
-        })
-      end
-    end
-
-    describe 'service_ensure => running' do
-      let(:params) {{ :service_ensure => 'running' }}
-
-      it { should create_class('ipmi') }
-      it { should contain_class('ipmi::params') }
-      it { should contain_class('ipmi::install') }
-      it { should contain_class('ipmi::config') }
-      it do
-        should contain_augeas('/etc/default/openipmi').with({
-          'context' => '/files/etc/default/openipmi',
-          'changes' => [
-            'set IPMI_WATCHDOG no',
-          ],
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmi').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmievd').with({
-          :ensure => 'stopped',
-          :enable => false,
-        })
-      end
-    end
-
-    describe 'service_ensure => stopped' do
-      let(:params) {{ :service_ensure => 'stopped' }}
-
-      it { should create_class('ipmi') }
-      it { should contain_class('ipmi::params') }
-      it { should contain_class('ipmi::install') }
-      it { should contain_class('ipmi::config') }
-      it do
-        should contain_augeas('/etc/default/openipmi').with({
-          'context' => '/files/etc/default/openipmi',
-          'changes' => [
-            'set IPMI_WATCHDOG no',
-          ],
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmi').with({
-          :ensure => 'stopped',
-          :enable => false,
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmievd').with({
-          :ensure => 'stopped',
-          :enable => false,
-        })
-      end
-    end
-
-    describe 'service_ensure => invalid-string' do
-      let(:params) {{ :service_ensure => 'invalid-string' }}
-
-      it 'should fail' do
-        expect {
-          should contain_class('ipmi')
-        }.to raise_error(Puppet::Error, /does not match/)
-      end
-    end
-
-    describe 'ipmievd_service_ensure => running' do
-      let(:params) {{ :ipmievd_service_ensure => 'running' }}
-
-      it { should create_class('ipmi') }
-      it { should contain_class('ipmi::params') }
-      it { should contain_class('ipmi::install') }
-      it { should contain_class('ipmi::config') }
-      it do
-        should contain_augeas('/etc/default/openipmi').with({
-          'context' => '/files/etc/default/openipmi',
-          'changes' => [
-            'set IPMI_WATCHDOG no',
-          ],
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmi').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmievd').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-      end
-    end
-
-    describe 'ipmievd_service_ensure => stopped' do
-      let(:params) {{ :ipmievd_service_ensure => 'stopped' }}
-
-      it { should create_class('ipmi') }
-      it { should contain_class('ipmi::params') }
-      it { should contain_class('ipmi::install') }
-      it { should contain_class('ipmi::config') }
-      it do
-        should contain_augeas('/etc/default/openipmi').with({
-          'context' => '/files/etc/default/openipmi',
-          'changes' => [
-            'set IPMI_WATCHDOG no',
-          ],
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmi').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmievd').with({
-          :ensure => 'stopped',
-          :enable => false,
-        })
-      end
-    end
-
-    describe 'ipmievd_service_ensure => invalid-string' do
-      let(:params) {{ :ipmievd_service_ensure => 'invalid-string' }}
-
-      it 'should fail' do
-        expect {
-          should contain_class('ipmi')
-        }.to raise_error(Puppet::Error, /does not match/)
-      end
-    end
-
-    describe 'watchdog => true' do
-      let(:params) {{ :watchdog => true }}
-
-      it { should contain_class('ipmi::params') }
-      it { should contain_class('ipmi::install') }
-      it { should contain_class('ipmi::config') }
-      it do
-        should contain_augeas('/etc/default/openipmi').with({
-          'context' => '/files/etc/default/openipmi',
-          'changes' => [
-            'set IPMI_WATCHDOG yes',
-          ],
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmi').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmievd').with({
-          :ensure => 'stopped',
-          :enable => false,
-        })
-      end
-    end
-
-    describe 'watchdog => false' do
-      let(:params) {{ :watchdog => false }}
-
-      it { should contain_class('ipmi::params') }
-      it { should contain_class('ipmi::install') }
-      it { should contain_class('ipmi::config') }
-      it do
-        should contain_augeas('/etc/default/openipmi').with({
-          'context' => '/files/etc/default/openipmi',
-          'changes' => [
-            'set IPMI_WATCHDOG no',
-          ],
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmi').with({
-          :ensure => 'running',
-          :enable => true,
-        })
-      end
-      it do
-        should contain_class('ipmi::service::ipmievd').with({
-          :ensure => 'stopped',
-          :enable => false,
-        })
-      end
-    end
-
-    describe 'watchdog => invalid-string' do
-      let(:params) {{ :watchdog => 'invalid-string' }}
-
-      it 'should fail' do
-        expect {
-          should contain_class('ipmi')
-        }.to raise_error(Puppet::Error, /is not a boolean/)
-      end
-    end
-
-  end
-
 end
