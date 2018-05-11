@@ -514,6 +514,9 @@ Layout/ClosingParenthesisIndentation:
 RSpec/ScatteredLet:
   Enabled: False
 
+RSpec/FilePath:
+  Enabled: False
+
 RSpec/BeforeAfterAll:
   Exclude:
     - spec/acceptance/**/*

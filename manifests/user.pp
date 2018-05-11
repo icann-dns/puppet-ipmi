@@ -2,13 +2,17 @@
 #
 
 define ipmi::user (
-  String       $password,
-  String       $user    = 'root',
-  Integer[1,4] $priv    = 4,
-  Integer[1]   $user_id = 3,
+  String           $password,
+  Integer[1,4]     $priv    = 4,
+  Integer[1]       $user_id = 3,
+  Optional[String] $user    = undef,
 )
 {
   require ::ipmi
+  $_user = $user ? {
+    undef   => $name,
+    default => $user,
+  }
 
   case $priv {
     1: {$privilege = 'CALLBACK'}
@@ -24,8 +28,8 @@ define ipmi::user (
   }
 
   exec { "ipmi_user_add_${title}":
-    command => "/usr/bin/ipmitool user set name ${user_id} ${user}",
-    unless  => "/usr/bin/test \"$(ipmitool user list 1 | grep '^${user_id}' | awk '{print \$2}')\" = \"${user}\"",
+    command => "/usr/bin/ipmitool user set name ${user_id} ${_user}",
+    unless  => "/usr/bin/test \"$(ipmitool user list 1 | grep '^${user_id}' | awk '{print \$2}')\" = \"${_user}\"",
     notify  => [Exec["ipmi_user_priv_${title}"], Exec["ipmi_user_setpw_${title}"]],
   }
 

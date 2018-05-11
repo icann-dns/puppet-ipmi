@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 describe 'ipmi' do
@@ -13,14 +15,15 @@ describe 'ipmi' do
       let(:facts) do
         facts
       end
-      case facts['os']['family']
-      when 'Redhat'
+
+      case facts[:os]['family']
+      when 'RedHat'
         let(:conf_file) { '/etc/sysconfig/ipmi' }
-        let(:packages) { ['OpenIPMI', 'ipmitool'] }
+        let(:packages) { %w[OpenIPMI ipmitool] }
         let(:ipmi_service_name) { 'ipmi' }
       else
         let(:conf_file) { '/etc/default/openipmi' }
-        let(:packages) { ['openipmi', 'ipmitool'] }
+        let(:packages) { %w[openipmi ipmitool] }
         let(:ipmi_service_name) { 'openipmi' }
       end
       describe 'check default config' do
@@ -33,20 +36,19 @@ describe 'ipmi' do
         it do
           is_expected.to contain_augeas(conf_file).with(
             context: "/files#{conf_file}",
-            changes: ['set IPMI_WATCHDOG no'],
-            notify: "Service['#{ipmi_service_name}', 'ipmievd']",
+            changes: ['set IPMI_WATCHDOG no']
           )
         end
         it do
           is_expected.to contain_service(ipmi_service_name).with(
             ensure: 'running',
-            enable: 'true',
+            enable: 'true'
           )
         end
         it do
           is_expected.to contain_service('ipmievd').with(
-            ensure: 'stopped'
-            enable: 'false',
+            ensure: 'stopped',
+            enable: 'false'
           )
         end
       end
@@ -61,9 +63,8 @@ describe 'ipmi' do
           it { is_expected.to compile }
           it do
             is_expected.to contain_augeas('/foo/bar').with(
-              context: "/files/foo/bar",
-              changes: ['set IPMI_WATCHDOG no'],
-              notify: "Service['#{ipmi_service_name}', 'ipmievd']",
+              context: '/files/foo/bar',
+              changes: ['set IPMI_WATCHDOG no']
             )
           end
         end
@@ -72,8 +73,8 @@ describe 'ipmi' do
           it { is_expected.to compile }
           it do
             is_expected.to contain_service('foobar').with(
-              ensure: 'running'
-              enable: 'true',
+              ensure: 'running',
+              enable: 'true'
             )
           end
         end
@@ -81,9 +82,9 @@ describe 'ipmi' do
           before { params.merge!(ipmi_service_ensure: 'stopped') }
           it { is_expected.to compile }
           it do
-            is_expected.to contain_service(ipmievd_service_name).with(
-              ensure: 'stopped'
-              enable: 'false',
+            is_expected.to contain_service(ipmi_service_name).with(
+              ensure: 'stopped',
+              enable: 'false'
             )
           end
         end
@@ -92,8 +93,8 @@ describe 'ipmi' do
           it { is_expected.to compile }
           it do
             is_expected.to contain_service('foobar').with(
-              ensure: 'stopped'
-              enable: 'false',
+              ensure: 'stopped',
+              enable: 'false'
             )
           end
         end
@@ -101,9 +102,9 @@ describe 'ipmi' do
           before { params.merge!(ipmievd_service_ensure: 'running') }
           it { is_expected.to compile }
           it do
-            is_expected.to contain_service('foobar').with(
-              ensure: 'running'
-              enable: 'true',
+            is_expected.to contain_service('ipmievd').with(
+              ensure: 'running',
+              enable: 'true'
             )
           end
         end
@@ -113,8 +114,7 @@ describe 'ipmi' do
           it do
             is_expected.to contain_augeas(conf_file).with(
               context: "/files#{conf_file}",
-              changes: ['set IPMI_WATCHDOG yes'],
-              notify: "Service['#{ipmi_service_name}', 'ipmievd']",
+              changes: ['set IPMI_WATCHDOG yes']
             )
           end
         end

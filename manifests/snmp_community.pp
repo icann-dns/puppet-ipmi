@@ -2,8 +2,8 @@
 #
 
 define ipmi::snmp_community (
-  Integer $lan_channel = 1,
-  Optional[String]  $community
+  Integer           $lan_channel = 1,
+  Optional[String]  $community   = undef,
 )
 {
   require ::ipmi
@@ -13,6 +13,7 @@ define ipmi::snmp_community (
   }
   exec { "ipmi_set_snmp_${lan_channel}":
     command => "/usr/bin/ipmitool lan set ${lan_channel} snmp ${_community}",
-    onlyif  => "/usr/bin/test \"$(ipmitool lan print ${lan_channel} | grep 'SNMP Community String' | sed -e 's/.* : //g')\" != \"${_community}\"",
+    onlyif  => "/usr/bin/test \"$(ipmitool lan print ${lan_channel} |\
+    grep 'SNMP Community String' | sed -e 's/.* : //g')\" != \"${_community}\"",
   }
 }

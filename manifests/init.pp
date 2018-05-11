@@ -43,7 +43,7 @@ class ipmi (
     require => Package[$packages],
   }
   if $snmp_communities {
-    create_resources('ipmi::snmp', $snmp_communities)
+    create_resources('ipmi::snmp_community', $snmp_communities)
   }
   if $users {
     create_resources('ipmi::user', $users)

@@ -3,13 +3,13 @@
 require 'spec_helper'
 
 describe 'ipmi::snmp_community' do
-
   let(:title) { 'public' }
   let(:params) { {} }
 
   # Puppet::Util::Log.level = :debug
   # Puppet::Util::Log.newdestination(:console)
-  let (:pre_condition) { 'include ipmi' }
+  let(:pre_condition) { 'include ipmi' }
+
   on_supported_os.each do |os, facts|
     context "on #{os}" do
       let(:facts) { facts }
@@ -19,7 +19,7 @@ describe 'ipmi::snmp_community' do
         it do
           is_expected.to contain_exec('ipmi_set_snmp_1').with(
             command: '/usr/bin/ipmitool lan set 1 snmp public',
-            onlyif: "/usr/bin/test \'$(ipmitool lan print 1 | grep 'SNMP Community String' | sed -e 's/.* : //g')\' != \'public\'",
+            onlyif: "/usr/bin/test \"$(ipmitool lan print 1 | grep 'SNMP Community String' | sed -e 's/.* : //g')\" != \"public\""
           )
         end
       end
@@ -30,7 +30,7 @@ describe 'ipmi::snmp_community' do
           it do
             is_expected.to contain_exec('ipmi_set_snmp_1').with(
               command: '/usr/bin/ipmitool lan set 1 snmp private',
-              onlyif: "/usr/bin/test \'$(ipmitool lan print 1 | grep 'SNMP Community String' | sed -e 's/.* : //g')\' != \'private\'",
+              onlyif: "/usr/bin/test \"$(ipmitool lan print 1 | grep 'SNMP Community String' | sed -e 's/.* : //g')\" != \"private\""
             )
           end
         end
@@ -40,7 +40,7 @@ describe 'ipmi::snmp_community' do
           it do
             is_expected.to contain_exec('ipmi_set_snmp_42').with(
               command: '/usr/bin/ipmitool lan set 42 snmp public',
-              onlyif: "/usr/bin/test \'$(ipmitool lan print 42 | grep 'SNMP Community String' | sed -e 's/.* : //g')\' != \'public\'",
+              onlyif: "/usr/bin/test \"$(ipmitool lan print 42 | grep 'SNMP Community String' | sed -e 's/.* : //g')\" != \"public\""
             )
           end
         end
