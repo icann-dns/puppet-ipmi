@@ -11,7 +11,7 @@ class ipmi (
   String                  $ipmievd_service_name,
   Stdlib::Ensure::Service $ipmievd_service_ensure,
   Boolean                 $watchdog,
-  Optional[Hash]          $snmps,
+  Optional[Hash]          $snmp_communities,
   Optional[Hash]          $users,
   Optional[Hash]          $networks,
 ) {
@@ -42,8 +42,8 @@ class ipmi (
     enable  => $enable_ipmievd,
     require => Package[$packages],
   }
-  if $snmps {
-    create_resources('ipmi::snmp', $snmps)
+  if $snmp_communities {
+    create_resources('ipmi::snmp', $snmp_communities)
   }
   if $users {
     create_resources('ipmi::user', $users)
